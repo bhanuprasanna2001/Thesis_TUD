@@ -3,8 +3,8 @@
 seed: 42
 
 model:
-  preset: "tiny"              # tiny (~100k), small (~250k), medium (~1M), large (~4M)
-  norm_type: "group"          # group, batch, instance, layer
+  preset: "small"              # tiny (~100k), small (~250k), medium (~1M), large (~4M)
+  norm_type: "batch"          # group, batch, instance, layer
   num_groups: 8
   timesteps: 300
   beta_start: 0.0001
@@ -28,4 +28,4 @@ training:
 logging:
   use_wandb: true
   project: "thesis-diffusion"
-  experiment_name: "mnist_tiny"
+  experiment_name: "mnist"

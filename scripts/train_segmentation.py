@@ -19,7 +19,7 @@ from src.models import UNetSegmentation, UNET_PRESETS
 from src.models.segmentation import SegmentationModel
 from src.data.oxford_pet import OxfordPetDataModule
 from src.data.cityscapes import CityscapesDataModule
-from src.training import GradientNormCallback
+from src.training import GradientNormCallback, SegmentationVisualizationCallback
 from src.utils import set_seed, count_parameters
 
 
@@ -58,7 +58,11 @@ def main():
     set_seed(config["seed"])
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    experiment_name = args.name or f"{config['logging']['experiment_name']}_{timestamp}"
+    if config['model']['type'] == "ours":
+        experiment_name = args.name or f"{config['data']['dataset']}_{config['model']['preset']}_{timestamp}"
+    else:
+        experiment_name = args.name or f"{config['data']['dataset']}_{config['model']['hub_init_features']}_{timestamp}"
+        
     output_dir = Path("experiments") / experiment_name
 
     # Data
@@ -118,6 +122,10 @@ def main():
         GradientNormCallback(log_every_n_steps=50),
         LearningRateMonitor(logging_interval="epoch"),
         EarlyStopping(monitor="val/iou", patience=5, mode="max"),
+        SegmentationVisualizationCallback(
+            every_n_epochs=train_cfg["sample_every"],
+            n_samples=train_cfg["n_samples"],
+        ),
     ]
 
     # Logger

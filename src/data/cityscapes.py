@@ -9,20 +9,7 @@ from pathlib import Path
 
 
 class CityscapesDataModule(L.LightningDataModule):
-    """Lightning DataModule for Cityscapes segmentation dataset.
-    
-    Note: CityScapes requires manual download and registration at
-    https://www.cityscapes-dataset.com/
-    
-    Expected directory structure:
-        data/cityscapes/
-            leftImg8bit/
-                train/
-                val/
-            gtFine/
-                train/
-                val/
-    """
+    """Lightning DataModule for Cityscapes segmentation dataset."""
 
     def __init__(
         self,
@@ -53,7 +40,7 @@ class CityscapesDataModule(L.LightningDataModule):
             T.PILToTensor(),
         ])
 
-    def setup(self, stage: str = None) -> None:
+    def setup(self, stage: str | None = None) -> None:
         if stage == "fit" or stage is None:
             self.train_dataset = CityscapesSegmentation(
                 root=self.data_dir,
@@ -77,6 +64,7 @@ class CityscapesDataModule(L.LightningDataModule):
             shuffle=True,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
+            persistent_workers=self.num_workers > 0
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -86,6 +74,7 @@ class CityscapesDataModule(L.LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
+            persistent_workers=self.num_workers > 0
         )
 
 

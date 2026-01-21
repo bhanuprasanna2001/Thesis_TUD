@@ -34,7 +34,7 @@ def main():
     config = load_config(args.config)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    experiment_name = args.name or f"{config['logging']['experiment_name']}_{timestamp}"
+    experiment_name = args.name or f"{config['logging']['experiment_name']}_{config['model']['preset']}_{timestamp}"
     output_dir = Path("experiments") / experiment_name
 
     set_seed(config["seed"])

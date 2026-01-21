@@ -73,6 +73,7 @@ def main():
             num_workers=data_cfg["num_workers"],
             img_size=data_cfg["img_size"],
             val_split=data_cfg.get("val_split", 0.1),
+            seed=config["seed"],
         )
     else:
         datamodule = CityscapesDataModule(
@@ -118,6 +119,7 @@ def main():
             save_top_k=3,
             monitor="val/iou",
             mode="max",
+            save_last=True,
         ),
         GradientNormCallback(log_every_n_steps=50),
         LearningRateMonitor(logging_interval="epoch"),
@@ -151,7 +153,8 @@ def main():
         devices=1,
         callbacks=callbacks,
         logger=logger,
-        log_every_n_steps=10,
+        log_every_n_steps=50,
+        enable_progress_bar=True,
         gradient_clip_val=train_cfg.get("gradient_clip_val", 1.0),
     )
 

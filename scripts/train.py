@@ -11,13 +11,13 @@ import yaml
 from datetime import datetime
 
 import lightning as L
-from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
+from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping
 from lightning.pytorch.loggers import WandbLogger, TensorBoardLogger
 
 from src.models import DiffusionModel
 from src.data import MNISTDataModule
 from src.training import SampleGenerationCallback, GradientNormCallback
-from src.utils import set_seed
+from src.utils import set_seed, count_parameters
 
 
 def load_config(path: str) -> dict:
@@ -45,6 +45,7 @@ def main():
         batch_size=data_cfg["batch_size"],
         num_workers=data_cfg["num_workers"],
         val_split=data_cfg.get("val_split", 0.0),
+        seed=config["seed"],
     )
 
     # Model
@@ -60,6 +61,12 @@ def main():
         lr=config["training"]["lr"],
         img_shape=tuple(model_cfg["img_shape"]),
     )
+
+    # Log model information
+    print(f"Dataset: {data_cfg['dataset']}")
+    print(f"Preset: {model_cfg.get('preset')}")
+    print(f"Parameters: {count_parameters(model):,}")
+    print("-" * 50)
 
     # Callbacks
     train_cfg = config["training"]
@@ -79,6 +86,7 @@ def main():
         ),
         GradientNormCallback(log_every_n_steps=50),
         LearningRateMonitor(logging_interval="epoch"),
+        EarlyStopping(monitor="train/loss_epoch", patience=10, mode="min"),
     ]
 
     # Logger

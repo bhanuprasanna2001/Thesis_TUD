@@ -13,6 +13,7 @@ class MNISTDataModule(L.LightningDataModule):
         batch_size: int = 128,
         num_workers: int = 0,
         val_split: float = 0.0,
+        seed: int = 42,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -21,6 +22,7 @@ class MNISTDataModule(L.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.val_split = val_split
+        self.seed = seed
         self.pin_memory = torch.cuda.is_available()
 
         self.transform = tv.transforms.Compose([
@@ -42,7 +44,7 @@ class MNISTDataModule(L.LightningDataModule):
                 train_size = len(full_train) - val_size
                 self.train_dataset, self.val_dataset = random_split(
                     full_train, [train_size, val_size],
-                    generator=torch.Generator().manual_seed(42)
+                    generator=torch.Generator().manual_seed(self.seed)
                 )
             else:
                 self.train_dataset = full_train

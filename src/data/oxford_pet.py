@@ -17,6 +17,7 @@ class OxfordPetDataModule(L.LightningDataModule):
         num_workers: int = 4,
         img_size: int = 128,
         val_split: float = 0.1,
+        seed: int = 42,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -26,6 +27,7 @@ class OxfordPetDataModule(L.LightningDataModule):
         self.num_workers = num_workers
         self.img_size = img_size
         self.val_split = val_split
+        self.seed = seed
         self.pin_memory = torch.cuda.is_available()
 
         self.transform = T.Compose([
@@ -56,7 +58,7 @@ class OxfordPetDataModule(L.LightningDataModule):
             self.train_dataset, self.val_dataset = random_split(
                 full_dataset,
                 [train_size, val_size],
-                generator=torch.Generator().manual_seed(42),
+                generator=torch.Generator().manual_seed(self.seed),
             )
 
     def train_dataloader(self) -> DataLoader:

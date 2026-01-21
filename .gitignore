@@ -7,6 +7,11 @@ data/*
 ml_template
 wandb/*
 !wandb/.gitkeep
+experiments/*
+!experiments/.gitkeep
+lightning_logs/
+notes/docs/*
+!notes/docs/.gitkeep
 
 ### JetBrains+all ###
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider

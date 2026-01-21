@@ -1,0 +1,35 @@
+# Segmentation model configuration
+
+seed: 42
+
+model:
+  type: "hub"  # "ours" or "hub" (PyTorch Hub U-Net)
+  
+  # For type="ours": tiny (~87K), small (~343K), medium (~1.4M), large (~5.6M)
+  preset: "small"
+  norm_type: "group"
+  num_groups: 8
+  
+  # For type="hub": init_features controls size
+  # init_features=8 (~487K), 16 (~1.9M), 32 (~7.8M), 64 (~31M)
+  hub_init_features: 8
+  
+  in_channels: 3
+  out_channels: 1
+
+data:
+  dataset: "oxford_pet"  # oxford_pet, cityscapes
+  batch_size: 16
+  num_workers: 4
+  img_size: 128
+  val_split: 0.1
+
+training:
+  epochs: 20
+  lr: 0.001
+  gradient_clip_val: 1.0
+
+logging:
+  use_wandb: true
+  project: "thesis-segmentation"
+  experiment_name: "oxford_pet_small"

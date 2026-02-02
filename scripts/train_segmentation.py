@@ -18,7 +18,6 @@ from lightning.pytorch.loggers import WandbLogger, TensorBoardLogger
 from src.models import UNetSegmentation, UNET_PRESETS
 from src.models.segmentation import SegmentationModel
 from src.data.oxford_pet import OxfordPetDataModule
-from src.data.cityscapes import CityscapesDataModule
 from src.training import GradientNormCallback, SegmentationVisualizationCallback
 from src.utils import set_seed, count_parameters
 
@@ -74,12 +73,6 @@ def main():
             img_size=data_cfg["img_size"],
             val_split=data_cfg.get("val_split", 0.1),
             seed=config["seed"],
-        )
-    else:
-        datamodule = CityscapesDataModule(
-            batch_size=data_cfg["batch_size"],
-            num_workers=data_cfg["num_workers"],
-            img_size=data_cfg["img_size"],
         )
 
     # Model

@@ -27,7 +27,7 @@ def load_config(path: str) -> dict:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/default.yaml")
+    parser.add_argument("--config", type=str, default="configs/diffusion.yaml")
     parser.add_argument("--name", type=str, default=None)
     args = parser.parse_args()
 

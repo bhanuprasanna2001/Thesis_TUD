@@ -3,10 +3,10 @@
 seed: 42
 
 model:
-  preset: "small"              # tiny (~100k), small (~250k), medium (~1M), large (~4M)
-  norm_type: "batch"          # group, batch, instance, layer
+  preset: "medium"              # tiny (~100k), small (~250k), medium (~1M), large (~4M)
+  norm_type: "group"          # group, batch, instance, layer
   num_groups: 8
-  timesteps: 300
+  timesteps: 1000
   beta_start: 0.0001
   beta_end: 0.02
   in_channels: 1

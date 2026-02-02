@@ -1,9 +1,38 @@
+import math
 import torch
 import torch.nn.functional as F
 import lightning as L
 from typing import Optional, Tuple, Dict, Any, List
 
 from .unet import UNet
+
+def make_beta_schedule(
+    schedule, n_timestep, linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3
+):
+    if schedule == "quad":
+        betas = (
+            torch.linspace(
+                linear_start ** 0.5, linear_end ** 0.5, n_timestep, dtype=torch.float64
+            )
+            ** 2
+        )
+
+    elif schedule == "linear":
+        betas = torch.linspace(
+            linear_start, linear_end, n_timestep, dtype=torch.float64
+        )
+
+    elif schedule == "cosine":
+        timesteps = (
+            torch.arange(n_timestep + 1, dtype=torch.float64) / n_timestep + cosine_s
+        )
+        alphas = timesteps / (1 + cosine_s) * math.pi / 2
+        alphas = torch.cos(alphas).pow(2)
+        alphas = alphas / alphas[0]
+        betas = 1 - alphas[1:] / alphas[:-1]
+        betas = betas.clamp(max=0.999)
+
+    return betas
 
 
 class DiffusionModel(L.LightningModule):
@@ -15,6 +44,7 @@ class DiffusionModel(L.LightningModule):
     def __init__(
         self,
         timesteps: int = 1000,
+        beta_scheduler: str = "cosine",
         beta_start: float = 1e-4,
         beta_end: float = 0.02,
         in_channels: int = 1,
@@ -51,7 +81,7 @@ class DiffusionModel(L.LightningModule):
         self._log_model_info()
 
         # Precompute diffusion schedule
-        betas = torch.linspace(beta_start, beta_end, timesteps)
+        betas = make_beta_schedule(beta_scheduler, timesteps, beta_start, beta_end)
         alphas = 1.0 - betas
         alphas_cumprod = torch.cumprod(alphas, dim=0)
         alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)

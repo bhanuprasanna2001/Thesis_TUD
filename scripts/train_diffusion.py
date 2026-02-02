@@ -52,6 +52,7 @@ def main():
     model_cfg = config["model"]
     model = DiffusionModel(
         timesteps=model_cfg["timesteps"],
+        beta_scheduler=model_cfg["beta_scheduler"],
         beta_start=model_cfg["beta_start"],
         beta_end=model_cfg["beta_end"],
         in_channels=model_cfg["in_channels"],

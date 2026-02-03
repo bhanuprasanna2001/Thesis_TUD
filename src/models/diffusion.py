@@ -12,19 +12,19 @@ def make_beta_schedule(
     if schedule == "quad":
         betas = (
             torch.linspace(
-                linear_start ** 0.5, linear_end ** 0.5, n_timestep, dtype=torch.float64
+                linear_start ** 0.5, linear_end ** 0.5, n_timestep, dtype=torch.float32
             )
             ** 2
         )
 
     elif schedule == "linear":
         betas = torch.linspace(
-            linear_start, linear_end, n_timestep, dtype=torch.float64
+            linear_start, linear_end, n_timestep, dtype=torch.float32
         )
 
     elif schedule == "cosine":
         timesteps = (
-            torch.arange(n_timestep + 1, dtype=torch.float64) / n_timestep + cosine_s
+            torch.arange(n_timestep + 1, dtype=torch.float32) / n_timestep + cosine_s
         )
         alphas = timesteps / (1 + cosine_s) * math.pi / 2
         alphas = torch.cos(alphas).pow(2)

@@ -1,3 +1,3 @@
-from .unet import UNet
+from .unet_segmentation import UNet
 
 __all__ = ["UNet"]

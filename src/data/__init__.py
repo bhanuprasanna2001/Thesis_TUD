@@ -1,4 +1,4 @@
-from .mnist import MNISTDataModule
-from .oxford_pet import OxfordPetDataModule
+from .mnist import MNIST
+from .oxford_pet import OxfordPetIII
 
-__all__ = ["MNISTDataModule", "OxfordPetDataModule"]
+__all__ = ["MNIST", "OxfordPetIII"]

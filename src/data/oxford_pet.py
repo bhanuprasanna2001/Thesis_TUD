@@ -1,6 +1,7 @@
 import torch
 import lightning as L
 import torchvision as tv
+from torchvision.datasets import OxfordIIITPet
 from torch.utils.data import DataLoader, random_split
 
 class OxfordPetIII(L.LightningDataModule):
@@ -30,12 +31,12 @@ class OxfordPetIII(L.LightningDataModule):
         ])
         
     def prepare_data(self) -> None:
-        tv.datasets.OxfordIIITPet(root=self.data_dir, split="trainval", target_types="segmentation", download=True)
-        tv.datasets.OxfordIIITPet(root=self.data_dir, split="test", target_types="segmentation", download=True)
+        OxfordIIITPet(root=self.data_dir, split="trainval", target_types="segmentation", download=True)
+        OxfordIIITPet(root=self.data_dir, split="test", target_types="segmentation", download=True)
         
     def setup(self, stage: str) -> None:
-        if stage == "train":
-            full_train = tv.datasets.OxfordIIITPet(
+        if stage == "fit":
+            full_train = OxfordIIITPetSegmentation(
                 root=self.data_dir, split="trainval", 
                 transform=self.transform, target_transform=self.target_transform
             )
@@ -53,7 +54,7 @@ class OxfordPetIII(L.LightningDataModule):
             )
             
         if stage == "test":
-            self.test_dataset = tv.datasets.OxfordIIITPet(
+            self.test_dataset = OxfordIIITPetSegmentation(
                 root=self.data_dir, split="test", 
                 transform=self.transform, target_transform=self.target_transform
             )
@@ -89,3 +90,23 @@ class OxfordPetIII(L.LightningDataModule):
         )
 
 
+class OxfordIIITPetSegmentation(OxfordIIITPet):
+    """Oxford-IIIT Pet with binary segmentation masks."""
+
+    def __init__(self, root, split, transform=None, target_transform=None):
+        super().__init__(
+            root=root,
+            split=split,
+            target_types="segmentation",
+            transform=transform,
+            target_transform=target_transform,
+            download=False,
+        )
+
+    def __getitem__(self, idx):
+        image, mask = super().__getitem__(idx)
+
+        # Convert trimap (1=foreground, 2=background, 3=boundary) to binary
+        # Foreground (pet) = 1, Background = 0
+        mask = (mask == 1).float()
+        return image, mask

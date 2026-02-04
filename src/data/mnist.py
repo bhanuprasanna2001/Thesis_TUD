@@ -28,7 +28,7 @@ class MNIST(L.LightningDataModule):
         tv.datasets.MNIST(root=self.data_dir, train=False, download=True)
         
     def setup(self, stage: str) -> None:
-        if stage == "train":
+        if stage == "fit":
             full_train = tv.datasets.MNIST(
                 root=self.data_dir, train=True, transform=self.transform
             )

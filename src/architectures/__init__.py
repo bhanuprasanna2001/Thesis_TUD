@@ -1,4 +1,4 @@
-from .unet_segmentation import UNet
-from .unet_diffusion import UNetDiffusion
+from .segmentation.unet_segmentation import UNet
+from .diffusion.unet_diffusion import UNetDiffusion
 
 __all__ = ["UNet", "UNetDiffusion"]

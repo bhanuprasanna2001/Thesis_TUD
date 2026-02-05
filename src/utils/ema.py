@@ -27,7 +27,8 @@ class EMA(nn.Module):
             if param.requires_grad:
                 buf_name = f"shadow_{idx}"
                 self.name_map[name] = buf_name
-                self.register_buffer(buf_name, param.detach().clone())
+                # Keep EMA weights in fp32 for stability (esp. with AMP/bf16)
+                self.register_buffer(buf_name, param.detach().float().clone())
                 idx += 1
                 
         self.backup = {}
@@ -35,12 +36,16 @@ class EMA(nn.Module):
                 
     @torch.no_grad()
     def update(self, model):
-        """Update the EMA parameters with the current model parameters."""
+        """Update the EMA parameters with the current model parameters.
+        
+        IMPORTANT: call this AFTER optimizer.step().
+        """
         d = float(self.decay)
         for name, param in model.named_parameters():
-            if param.requires_grad:
-                shadow = getattr(self, self.name_map[name])
-                shadow.mul_(d).add_(param.detach(), alpha=(1.0 - d))
+            if name not in self.name_map:
+                continue
+            shadow = getattr(self, self.name_map[name])
+            shadow.mul_(d).add_(param.detach().float(), alpha=(1.0 - d))
                 
                 
     @torch.no_grad()
@@ -48,9 +53,10 @@ class EMA(nn.Module):
         """Apply EMA parameters to the model (for sampling/evaluation)."""
         self.backup = {}
         for name, param in model.named_parameters():
-            if param.requires_grad:
-                self.backup[name] = param.detach().clone()
-                param.copy_(getattr(self, self.name_map[name]))
+            if name not in self.name_map:
+                continue
+            self.backup[name] = param.detach().clone()
+            param.copy_(getattr(self, self.name_map[name]).to(dtype=param.dtype))
                 
                 
     @torch.no_grad()
@@ -59,6 +65,6 @@ class EMA(nn.Module):
         if not self.backup:
             return
         for name, param in model.named_parameters():
-            if param.requires_grad:
+            if name in self.backup:
                 param.copy_(self.backup[name])
         self.backup = {}

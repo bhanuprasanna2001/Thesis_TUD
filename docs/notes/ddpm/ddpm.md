@@ -168,6 +168,7 @@ The main thing that we have is that in $L_{t-1}$, we have this term $\sum_{t \gt
 **The main idea is that it would be better have both q and p follow gaussian so as to get to a closed form solution.**
 
 They show the *true* forward posterior is Gaussian:
+
 $$
 q(x_{t-1}|x_t,x_0) = \mathcal N(x_{t-1};\tilde\mu_t(x_t,x_0),\tilde\beta_t I)
 $$
@@ -175,6 +176,7 @@ $$
 Equation 6-7 from (2).
 
 And they choose the model reverse step to also be Gaussian:
+
 $$
 p_\theta(x_{t-1}|x_t)=\mathcal N(x_{t-1};\mu_\theta(x_t,t),\sigma_t^2 I)
 $$
@@ -186,9 +188,11 @@ So each KL term $D_{KL}(\text{Gaussian}\parallel\text{Gaussian})$ becomes someth
 **The important simplification: fixed variances ⇒ KL becomes (weighted) MSE on means.**
 
 If you fix $\sigma_t^2$, then the KL between Gaussians is basically:
+
 $$
 L_{t-1} = \mathbb E_q\Big[\frac{1}{2\sigma_t^2}|\tilde\mu_t(x_t,x_0)-\mu_\theta(x_t,t)|^2\Big] + \text{const}
 $$
+
 Equation. (8) of (2)
 
 So at this point: **make $\mu_\theta$ match $\tilde\mu_t$**.

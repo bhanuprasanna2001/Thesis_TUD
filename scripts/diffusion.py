@@ -36,11 +36,13 @@ def main():
         # U-Net Model
         "in_channels": 1,
         "out_channels": 1,
+        "groups": 8,
         "preset": "tiny",
+        "time_emb_dim": 512,
 
         # Training
-        "lr": 0.0002,
-        "epochs": 10,
+        "lr": 0.0003,
+        "epochs": 300,
         "batch_size": 128,
         "gradient_clip_val": 1.0,
 
@@ -49,7 +51,7 @@ def main():
         "log_every_n_steps": 5,
         "monitor": "val/loss",
         "mode": "min",
-        "patience": 5,
+        "patience": 10,
 
         # Diffusion Visualization Callback
         "every_n_epochs": 1,
@@ -80,7 +82,9 @@ def main():
         start=config["start"],
         end=config["end"],
         timesteps=config["timesteps"],
-        scheduler_type=config["scheduler_type"]
+        scheduler_type=config["scheduler_type"],
+        groups=config["groups"],
+        time_emb_dim=config["time_emb_dim"]
     )
 
     print(f"Parameters: {count_parameters(model):,}")

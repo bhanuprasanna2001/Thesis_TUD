@@ -10,7 +10,7 @@ from .utils import get_scheduler, get_unet_preset
 
 class Diffusion(L.LightningModule):
 
-    def __init__(self, lr=0.0002, preset="tiny", start=0.0001, end=0.02, timesteps=1000, scheduler_type="linear", img_shape = (1, 28, 28)):
+    def __init__(self, lr=0.0002, preset="tiny", start=0.0001, end=0.02, timesteps=1000, scheduler_type="linear", img_shape = (1, 28, 28), groups=8, time_emb_dim=512):
         super().__init__()
 
         self.lr = lr
@@ -39,7 +39,7 @@ class Diffusion(L.LightningModule):
 
         base_channels = get_unet_preset(preset)
 
-        self.network = UNetDiffusion(in_channels=1, out_channels=1, base_channels=base_channels)
+        self.network = UNetDiffusion(in_channels=1, out_channels=1, base_channels=base_channels, groups=groups, time_emb_dim=time_emb_dim)
 
 
     def q_sample(self, batch):

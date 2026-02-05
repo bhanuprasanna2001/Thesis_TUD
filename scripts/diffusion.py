@@ -13,7 +13,7 @@ import lightning as L
 from lightning.pytorch.loggers import WandbLogger, TensorBoardLogger
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping
 
-from src.data import MNIST
+from src.data import MNIST, CIFAR10
 from src.diffusion import Diffusion
 from src.utils import set_seed, count_parameters
 from src.utils import GradientNormCallback, DiffusionSampleGenerationCallback
@@ -21,8 +21,8 @@ from src.utils import GradientNormCallback, DiffusionSampleGenerationCallback
 
 def main():
     config = {
-        # MNIST
-        "dataset": "MNIST",
+        # Dataset
+        "dataset": "CIFAR10",  # Options: "MNIST", "CIFAR10"
         "num_workers": 4,
         "val_split": 0.15,
         "seed": 42,
@@ -36,8 +36,9 @@ def main():
         # U-Net Model
         "in_channels": 1,
         "out_channels": 1,
+        "img_shape": (1, 28, 28),
         "groups": 8,
-        "preset": "tiny",
+        "preset": "large",
         "time_emb_dim": 512,
 
         # Training
@@ -51,7 +52,7 @@ def main():
         "log_every_n_steps": 5,
         "monitor": "val/loss",
         "mode": "min",
-        "patience": 10,
+        "patience": 35,
 
         # Diffusion Visualization Callback
         "every_n_epochs": 1,
@@ -70,15 +71,35 @@ def main():
         
     output_dir = Path("experiments") / experiment_name
 
-    datamodule = MNIST(
-        batch_size=config["batch_size"],
-        num_workers=config["num_workers"],
-        val_split=config["val_split"],
-        seed=config["seed"]
-    )
+    # Select dataset based on config
+    if config["dataset"] == "MNIST":
+        datamodule = MNIST(
+            batch_size=config["batch_size"],
+            num_workers=config["num_workers"],
+            val_split=config["val_split"],
+            seed=config["seed"]
+        )
+        config["in_channels"] = 1
+        config["out_channels"] = 1
+        config["img_shape"] = (1, 28, 28)
+    elif config["dataset"] == "CIFAR10":
+        datamodule = CIFAR10(
+            batch_size=config["batch_size"],
+            num_workers=config["num_workers"],
+            val_split=config["val_split"],
+            seed=config["seed"]
+        )
+        config["in_channels"] = 3
+        config["out_channels"] = 3
+        config["img_shape"] = (3, 32, 32)
+    else:
+        raise ValueError(f"Unknown dataset: {config['dataset']}. Choose 'MNIST' or 'CIFAR10'.")
 
     model = Diffusion(
-        lr = config["lr"],
+        in_channels=config["in_channels"],
+        out_channels=config["out_channels"],
+        img_shape=config["img_shape"],
+        lr=config["lr"],
         start=config["start"],
         end=config["end"],
         timesteps=config["timesteps"],

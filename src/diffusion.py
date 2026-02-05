@@ -10,7 +10,7 @@ from .utils import get_scheduler, get_unet_preset
 
 class Diffusion(L.LightningModule):
 
-    def __init__(self, lr=0.0002, preset="tiny", start=0.0001, end=0.02, timesteps=1000, scheduler_type="linear", img_shape = (1, 28, 28), groups=8, time_emb_dim=512):
+    def __init__(self, in_channels=1, out_channels=1, lr=0.0002, preset="tiny", start=0.0001, end=0.02, timesteps=1000, scheduler_type="linear", img_shape=(1, 28, 28), groups=8, time_emb_dim=512):
         super().__init__()
 
         self.lr = lr
@@ -29,6 +29,9 @@ class Diffusion(L.LightningModule):
         recp_sqrt_alpha_bar = 1 / sqrt_alpha_bar
         beta_recp_sqrt_one_minus_alpha_bar = beta / sqrt_one_minus_alpha_bar
 
+        alpha_bar_prev = torch.cat([torch.ones(1), alpha_bar[:-1]])
+        posterior_variance = beta * (1.0 - alpha_bar_prev) / (1.0 - alpha_bar)
+
         self.register_buffer("beta", beta)
         self.register_buffer("alpha", alpha)
         self.register_buffer("alpha_bar", alpha_bar)
@@ -36,11 +39,11 @@ class Diffusion(L.LightningModule):
         self.register_buffer("sqrt_one_minus_alpha_bar", sqrt_one_minus_alpha_bar)
         self.register_buffer("recp_sqrt_alpha_bar", recp_sqrt_alpha_bar)
         self.register_buffer("beta_recp_sqrt_one_minus_alpha_bar", beta_recp_sqrt_one_minus_alpha_bar)
+        self.register_buffer("posterior_variance", posterior_variance)
 
         base_channels = get_unet_preset(preset)
 
-        self.network = UNetDiffusion(in_channels=1, out_channels=1, base_channels=base_channels, groups=groups, time_emb_dim=time_emb_dim)
-
+        self.network = UNetDiffusion(in_channels=in_channels, out_channels=out_channels, base_channels=base_channels, groups=groups, time_emb_dim=time_emb_dim)
 
     def q_sample(self, batch):
         batch_size = batch.size(0)
@@ -98,8 +101,8 @@ class Diffusion(L.LightningModule):
             return mean
         else:
             noise = torch.randn_like(x)
-            sigma_t = torch.sqrt(beta_t)
-            return mean + sigma_t * noise
+            var = self.posterior_variance[t].view(shape)
+            return mean + torch.sqrt(var) * noise
 
 
     @torch.no_grad()
@@ -117,9 +120,9 @@ class Diffusion(L.LightningModule):
     
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=0.0, betas=(0.9, 0.99))
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=self.trainer.max_epochs or 9
+            optimizer, T_max=self.trainer.max_epochs or 300
         )
         return {
             "optimizer": optimizer,

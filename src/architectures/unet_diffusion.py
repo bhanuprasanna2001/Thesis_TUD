@@ -80,7 +80,7 @@ class OutConv(nn.Module):
         return X
 
 
-class UNet(nn.Module):
+class UNetDiffusion(nn.Module):
     
     def __init__(self, in_channels, out_channels, base_channels=64):
         super().__init__()
@@ -131,7 +131,7 @@ class UNet(nn.Module):
         
 if __name__ == "__main__":
     X = torch.randn((1, 1, 572, 572))
-    unet = UNet(1, 1)
+    unet = UNetDiffusion(1, 1)
     out = unet(X)
     print(X.size(), out.size())
     assert X.size() == out.size()

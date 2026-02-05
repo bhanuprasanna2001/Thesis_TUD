@@ -1,7 +1,3 @@
-I’ll read the paper you provided (arXiv:2112.10752v2) and turn it into an Obsidian vault note that (a) refreshes the core in ~10 minutes and (b) lets you re-derive + implement the method from scratch, with explicit equation/section/page anchors and filled-in algebra where the paper skips steps.
-
----
-
 # High-Resolution Image Synthesis with Latent Diffusion Models — Vault Note
 
 ## 0) TL;DR CARD (10 lines max)

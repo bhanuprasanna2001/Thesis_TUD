@@ -60,7 +60,7 @@ def main():
 
         # Diffusion Visualization Callback
         "every_n_epochs": 1,
-        "n_samples": 4,
+        "n_samples": 16,
 
         # Logging
         "use_wandb": True,
@@ -129,7 +129,7 @@ def main():
         GradientNormCallback(log_every_n_steps=config["log_every_n_steps"]),
         LearningRateMonitor(logging_interval="epoch"),
         EarlyStopping(monitor=config["monitor"], patience=config["patience"], mode=config["mode"]),
-        DiffusionSampleGenerationCallback(every_n_epochs=config["every_n_epochs"], output_dir=str(output_dir / "samples"))
+        DiffusionSampleGenerationCallback(every_n_epochs=config["every_n_epochs"], n_samples=config["n_samples"], output_dir=str(output_dir / "samples"))
     ]
 
     if config["use_wandb"]:

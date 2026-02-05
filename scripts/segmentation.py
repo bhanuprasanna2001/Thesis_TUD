@@ -31,18 +31,24 @@ def main():
         # Segmentation Model
         "in_channels": 3,
         "out_channels": 1,
-        "preset": "small",
+        "preset": "tiny",
         
         # Training
         "lr": 0.0002,
         "epochs": 10,
         "batch_size": 128,
         "gradient_clip_val": 1.0,
+
+        # Checkpointing and Early Stopping
+        "save_top_k": 3,
+        "log_every_n_steps": 20,
+        "monitor": "val/iou",
+        "mode": "max",
+        "patience": 5,
         
         # Segmentation Visualization Callback
         "every_n_epochs": 1,
         "n_samples": 4,
-        
         
         # Logging
         "use_wandb": True,
@@ -78,14 +84,14 @@ def main():
         ModelCheckpoint(
             dirpath=output_dir / "checkpoints",
             filename="{epoch:02d}-{val/iou:.4f}",
-            save_top_k=3,
-            monitor="val/iou",
-            mode="max",
+            save_top_k=config["save_top_k"],
+            monitor=config["monitor"],
+            mode=config["mode"],
             save_last=True,
         ),
-        GradientNormCallback(log_every_n_steps=50),
+        GradientNormCallback(log_every_n_steps=config["log_every_n_steps"]),
         LearningRateMonitor(logging_interval="epoch"),
-        EarlyStopping(monitor="val/iou", patience=5, mode="max"),
+        EarlyStopping(monitor=config["monitor"], patience=config["patience"], mode=config["mode"]),
         SegmentationVisualizationCallback(
             every_n_epochs=config["every_n_epochs"],
             n_samples=config["n_samples"]
@@ -112,7 +118,7 @@ def main():
         devices=1,
         callbacks=callbacks,
         logger=logger,
-        log_every_n_steps=50,
+        log_every_n_steps=config["log_every_n_steps"],
         enable_progress_bar=True,
         gradient_clip_val=config.get("gradient_clip_val", 1.0),
     )

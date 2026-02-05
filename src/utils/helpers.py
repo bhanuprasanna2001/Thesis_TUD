@@ -33,3 +33,18 @@ def save_samples(samples, path, nrow):
     samples = (samples.clamp(-1, 1) + 1) / 2
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     tv.utils.save_image(samples, path, nrow=nrow)
+
+
+def get_unet_preset(preset):
+    """Get base channels for UNet based on preset."""
+    presets = {
+        "tiny": 16,
+        "small": 24,
+        "medium": 28,
+        "large": 32,
+    }
+    
+    if preset not in presets:
+        raise ValueError(f"Unknown preset: {preset}")
+    
+    return presets[preset]

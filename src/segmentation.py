@@ -5,6 +5,8 @@ import torch.nn.functional as F
 
 from .architectures import UNet
 
+from .utils import get_unet_preset
+
 class SegmentationModel(L.LightningModule):
     """Segmentation Model for Oxford Pet Dataset."""
     
@@ -16,17 +18,7 @@ class SegmentationModel(L.LightningModule):
         self.in_channels = in_channels
         self.out_channels = out_channels
         
-        presets = {
-            "tiny": 16,
-            "small": 24,
-            "medium": 28,
-            "large": 32,
-        }
-        
-        if preset is not None:
-            if preset not in presets:
-                raise ValueError(f"Unknown preset: {preset}")
-            base_channels = presets[preset]
+        base_channels = get_unet_preset(preset)
         
         self.network = UNet(in_channels=in_channels, out_channels=out_channels, base_channels=base_channels)
         

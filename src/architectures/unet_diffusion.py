@@ -109,7 +109,7 @@ class UNetDiffusion(nn.Module):
         self.out = OutConv(in_channels=c1, out_channels=out_channels)
         
         
-    def forward(self, X):
+    def forward(self, X, t):
         # Contracting Path
         X1 = self.double_conv(X)
         X2 = self.down1(X1)

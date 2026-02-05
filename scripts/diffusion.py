@@ -43,7 +43,7 @@ def main():
 
         # Training
         "lr": 0.0003,
-        "epochs": 3000,
+        "epochs": 300,
         "batch_size": 128,
         "gradient_clip_val": 1.0,
 
@@ -56,7 +56,7 @@ def main():
         "log_every_n_steps": 5,
         "monitor": "val/loss",
         "mode": "min",
-        "patience": 2950,
+        "patience": 295,
 
         # Diffusion Visualization Callback
         "every_n_epochs": 1,

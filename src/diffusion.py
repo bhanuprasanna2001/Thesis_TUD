@@ -47,18 +47,15 @@ class Diffusion(L.LightningModule):
 
         self.network = UNetDiffusion(in_channels=in_channels, out_channels=out_channels, base_channels=base_channels, groups=groups, time_emb_dim=time_emb_dim)
 
-        # Initialize EMA (will be properly set up in on_fit_start)
-        self.ema = None
+        # Initialize EMA in __init__ so it is included in checkpoints and moved to device with the module
+        self.ema = EMA(self.network, decay=self.ema_decay) if self.use_ema else None
 
 
-    def on_fit_start(self):
-        """Initialize EMA after model is moved to the correct device."""
-        if self.use_ema:
-            self.ema = EMA(self.network, decay=self.ema_decay)
+    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_closure, **kwargs):
+        # Let Lightning do the actual stepping/clipping/etc
+        super().optimizer_step(epoch, batch_idx, optimizer, optimizer_closure, **kwargs)
 
-
-    def on_before_optimizer_step(self, optimizer):
-        """Update EMA parameters after each training step."""
+        # Update EMA AFTER the optimizer step (handles grad accumulation correctly)
         if self.use_ema and self.ema is not None:
             self.ema.update(self.network)
 
@@ -125,6 +122,7 @@ class Diffusion(L.LightningModule):
 
     @torch.no_grad()
     def sample(self, n):
+        was_training = self.training
         self.eval()
         device = self.device
         
@@ -132,15 +130,19 @@ class Diffusion(L.LightningModule):
         if self.use_ema and self.ema is not None:
             self.ema.apply(self.network)
         
-        x = torch.randn(n, *self.img_shape, device=device)
-        
-        for i in reversed(range(self.timesteps)):
-            t = torch.full((n,), i, device=device, dtype=torch.long)
-            x = self.p_sample(x, t, i)
-        
-        # Restore original weights after sampling
-        if self.use_ema and self.ema is not None:
-            self.ema.restore(self.network)
+        try:
+            x = torch.randn(n, *self.img_shape, device=device)
+            
+            for i in reversed(range(self.timesteps)):
+                t = torch.full((n,), i, device=device, dtype=torch.long)
+                x = self.p_sample(x, t, i)
+        finally:
+            # Restore original weights after sampling
+            if self.use_ema and self.ema is not None:
+                self.ema.restore(self.network)
+            
+            if was_training:
+                self.train()
             
         return x
     
@@ -185,5 +187,3 @@ if __name__ == "__main__":
     
     assert torch.allclose(actual_eps, reconstructed_eps, atol=1e-5), "x_t math is inconsistent"
     print("Test passed! Forward diffusion math is correct.")
-
-    

@@ -19,47 +19,46 @@ class EMA(nn.Module):
         
         self.decay = decay
         
-        # Create shadow parameters (deep copy of model parameters)
-        self.shadow = {}
+        # Register shadow parameters as buffers so they:
+        # 1) move to device automatically, 2) are saved/loaded in checkpoints
+        self.name_map = {}
+        idx = 0
         for name, param in model.named_parameters():
             if param.requires_grad:
-                self.shadow[name] = param.data.clone()
+                buf_name = f"shadow_{idx}"
+                self.name_map[name] = buf_name
+                self.register_buffer(buf_name, param.detach().clone())
+                idx += 1
+                
+        self.backup = {}
                 
                 
     @torch.no_grad()
     def update(self, model):
         """Update the EMA parameters with the current model parameters."""
+        d = float(self.decay)
         for name, param in model.named_parameters():
             if param.requires_grad:
-                self.shadow[name] = self.decay * self.shadow[name] + (1 - self.decay) * param.data
+                shadow = getattr(self, self.name_map[name])
+                shadow.mul_(d).add_(param.detach(), alpha=(1.0 - d))
                 
                 
+    @torch.no_grad()
     def apply(self, model):
         """Apply EMA parameters to the model (for sampling/evaluation)."""
         self.backup = {}
         for name, param in model.named_parameters():
             if param.requires_grad:
-                self.backup[name] = param.data.clone()
-                param.data.copy_(self.shadow[name])
+                self.backup[name] = param.detach().clone()
+                param.copy_(getattr(self, self.name_map[name]))
                 
                 
+    @torch.no_grad()
     def restore(self, model):
         """Restore original parameters to the model (after sampling/evaluation)."""
+        if not self.backup:
+            return
         for name, param in model.named_parameters():
             if param.requires_grad:
-                param.data.copy_(self.backup[name])
+                param.copy_(self.backup[name])
         self.backup = {}
-        
-        
-    def state_dict(self, destination=None, prefix='', keep_vars=False):
-        """Return state dict for saving."""
-        return {
-            "decay": self.decay,
-            "shadow": self.shadow,
-        }
-        
-        
-    def load_state_dict(self, state_dict, strict=True, assign=False):
-        """Load state dict for restoring."""
-        self.decay = state_dict["decay"]
-        self.shadow = state_dict["shadow"]

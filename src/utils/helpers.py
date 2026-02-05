@@ -36,15 +36,36 @@ def save_samples(samples, path, nrow):
 
 
 def get_unet_preset(preset):
-    """Get base channels for UNet based on preset."""
+    """Get base channels for UNet based on preset.
+    
+    Note: base_channels must be divisible by groups (default 8) for GroupNorm.
+    Parameters scale roughly with base_channels^2.
+    
+    Preset      base_channels   ~Parameters (3ch input)
+    -------     -------------   -----------------------
+    xtiny       8               0.8M
+    tiny        16              2M
+    mini        24              4M
+    small       32              6M
+    medium      48              13M
+    base        64              23M
+    large       96              51M
+    xlarge      128             89M
+    xxlarge     192             198M
+    """
     presets = {
+        "xtiny": 8,
         "tiny": 16,
-        "small": 24,
-        "medium": 28,
-        "large": 32,
+        "mini": 24,
+        "small": 32,
+        "medium": 48,
+        "base": 64,
+        "large": 96,
+        "xlarge": 128,
+        "xxlarge": 192,
     }
     
     if preset not in presets:
-        raise ValueError(f"Unknown preset: {preset}")
+        raise ValueError(f"Unknown preset: {preset}. Choose from {list(presets.keys())}")
     
     return presets[preset]

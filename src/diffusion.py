@@ -5,16 +5,18 @@ import torch.nn.functional as F
 
 from .architectures import UNetDiffusion
 
-from .utils import get_scheduler, get_unet_preset
+from .utils import get_scheduler, get_unet_preset, EMA
 
 
 class Diffusion(L.LightningModule):
 
-    def __init__(self, in_channels=1, out_channels=1, lr=0.0002, preset="tiny", start=0.0001, end=0.02, timesteps=1000, scheduler_type="linear", img_shape=(1, 28, 28), groups=8, time_emb_dim=512):
+    def __init__(self, in_channels=1, out_channels=1, lr=0.0002, preset="tiny", start=0.0001, end=0.02, timesteps=1000, scheduler_type="linear", img_shape=(1, 28, 28), groups=8, time_emb_dim=512, use_ema=True, ema_decay=0.9999):
         super().__init__()
 
         self.lr = lr
         self.img_shape = img_shape
+        self.use_ema = use_ema
+        self.ema_decay = ema_decay
 
         self.start = start
         self.end = end
@@ -44,6 +46,22 @@ class Diffusion(L.LightningModule):
         base_channels = get_unet_preset(preset)
 
         self.network = UNetDiffusion(in_channels=in_channels, out_channels=out_channels, base_channels=base_channels, groups=groups, time_emb_dim=time_emb_dim)
+
+        # Initialize EMA (will be properly set up in on_fit_start)
+        self.ema = None
+
+
+    def on_fit_start(self):
+        """Initialize EMA after model is moved to the correct device."""
+        if self.use_ema:
+            self.ema = EMA(self.network, decay=self.ema_decay)
+
+
+    def on_before_optimizer_step(self, optimizer):
+        """Update EMA parameters after each training step."""
+        if self.use_ema and self.ema is not None:
+            self.ema.update(self.network)
+
 
     def q_sample(self, batch):
         batch_size = batch.size(0)
@@ -110,11 +128,19 @@ class Diffusion(L.LightningModule):
         self.eval()
         device = self.device
         
+        # Use EMA weights for sampling if available
+        if self.use_ema and self.ema is not None:
+            self.ema.apply(self.network)
+        
         x = torch.randn(n, *self.img_shape, device=device)
         
         for i in reversed(range(self.timesteps)):
             t = torch.full((n,), i, device=device, dtype=torch.long)
             x = self.p_sample(x, t, i)
+        
+        # Restore original weights after sampling
+        if self.use_ema and self.ema is not None:
+            self.ema.restore(self.network)
             
         return x
     

@@ -33,12 +33,12 @@ def main():
         "timesteps": 1000,
         "scheduler_type": "linear",
 
-        # U-Net Model
+        # U-Net Model - xtiny(0.8M), tiny(2M), mini(4M), small(6M), medium(13M), base(23M), large(51M), xlarge(89M), xxlarge(198M)
         "in_channels": 1,
         "out_channels": 1,
         "img_shape": (1, 28, 28),
         "groups": 8,
-        "preset": "large",
+        "preset": "medium",  
         "time_emb_dim": 512,
 
         # Training
@@ -46,6 +46,10 @@ def main():
         "epochs": 300,
         "batch_size": 128,
         "gradient_clip_val": 1.0,
+
+        # EMA
+        "use_ema": True,
+        "ema_decay": 0.9999,
 
         # Checkpointing and Early Stopping
         "save_top_k": 3,
@@ -100,12 +104,15 @@ def main():
         out_channels=config["out_channels"],
         img_shape=config["img_shape"],
         lr=config["lr"],
+        preset=config["preset"],
         start=config["start"],
         end=config["end"],
         timesteps=config["timesteps"],
         scheduler_type=config["scheduler_type"],
         groups=config["groups"],
-        time_emb_dim=config["time_emb_dim"]
+        time_emb_dim=config["time_emb_dim"],
+        use_ema=config["use_ema"],
+        ema_decay=config["ema_decay"]
     )
 
     print(f"Parameters: {count_parameters(model):,}")

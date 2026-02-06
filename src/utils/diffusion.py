@@ -77,19 +77,25 @@ def create_denoising_grid(intermediates, nrow=None, save_path=None):
     if nrow is None:
         nrow = len(intermediates)
     
-    # Collect all images in order
+    # Collect all timestep images
     images = []
     for step_data in intermediates:
         img = step_data['image']
-        # Normalize from [-1, 1] to [0, 1]
         img = (img.clamp(-1, 1) + 1) / 2
         images.append(img)
     
-    # Stack all images
-    all_images = torch.cat(images, dim=0)
+    # Stack: [n_timesteps, n_samples, C, H, W]
+    images = torch.stack(images, dim=0)
+    n_timesteps, n_samples, C, H, W = images.shape
+    
+    # Transpose to [n_samples, n_timesteps, C, H, W]
+    images = images.transpose(0, 1)
+    
+    # Reshape to [n_samples * n_timesteps, C, H, W]
+    images = images.reshape(n_samples * n_timesteps, C, H, W)
     
     # Create grid
-    grid = tv.utils.make_grid(all_images, nrow=nrow, padding=2, pad_value=1.0)
+    grid = tv.utils.make_grid(images, nrow=n_timesteps, padding=2, pad_value=1.0)
     
     # Convert to PIL
     grid_np = grid.permute(1, 2, 0).cpu().numpy()

@@ -2,6 +2,7 @@
 
 import sys
 import yaml
+import argparse
 from pathlib import Path
 from datetime import datetime
 
@@ -15,8 +16,9 @@ from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, Ea
 
 from src.data import MNIST, CIFAR10
 from src.diffusion import Diffusion
-from src.utils import set_seed, count_parameters
+from src.utils import set_seed, count_parameters, get_device
 from src.utils import GradientNormCallback, DiffusionSampleGenerationCallback
+from src.utils import generate_sample_report
 
 
 def main():
@@ -161,5 +163,109 @@ def main():
     trainer.fit(model, datamodule)
 
 
+def sample_mode(checkpoint_path, n_samples=16, n_grids=4):
+    """Generate visualization report from trained checkpoint.
+    
+    Args:
+        checkpoint_path: Path to model checkpoint
+        n_samples: Number of samples per visualization
+        n_grids: Number of sample grids to generate
+    """
+    checkpoint_path = Path(checkpoint_path)
+    
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+    
+    print(f"Loading checkpoint: {checkpoint_path}")
+    
+    # Load config to get model hyperparameters
+    config_path = checkpoint_path.parent.parent / "config.yaml"
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}\nCannot determine model architecture.")
+    
+    with open(config_path) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+    
+    print(f"Config: {config['dataset']} | {config['preset']} | {config.get('in_channels', 3)}ch")
+    
+    # Load model from checkpoint with correct hyperparameters
+    model = Diffusion.load_from_checkpoint(
+        checkpoint_path,
+        in_channels=config["in_channels"],
+        out_channels=config["out_channels"],
+        img_shape=tuple(config["img_shape"]),
+        lr=config["lr"],
+        preset=config["preset"],
+        start=config["start"],
+        end=config["end"],
+        timesteps=config["timesteps"],
+        scheduler_type=config["scheduler_type"],
+        groups=config["groups"],
+        time_emb_dim=config["time_emb_dim"],
+        use_ema=config.get("use_ema", True),
+        ema_decay=config.get("ema_decay", 0.9999)
+    )
+    model.eval()
+    
+    device = get_device()
+    model.to(device)
+    print(f"Using device: {device}")
+    
+    # Determine output directory (experiment folder / visualizations)
+    if "experiments" in str(checkpoint_path):
+        experiment_dir = checkpoint_path.parent.parent
+        output_dir = experiment_dir / "visualizations"
+    else:
+        output_dir = checkpoint_path.parent / "visualizations"
+    
+    # Generate comprehensive report
+    generate_sample_report(
+        model=model,
+        output_dir=output_dir,
+        n_samples=n_samples,
+        n_grids=n_grids
+    )
+    
+    print(f"\n✓ Visualization report complete: {output_dir}")
+
+
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Train or sample from Diffusion model")
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="train",
+        choices=["train", "sample"],
+        help="Mode: train a new model or sample from checkpoint (default: train)"
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        default=None,
+        help="Path to checkpoint file (required for sample mode)"
+    )
+    parser.add_argument(
+        "--n_samples",
+        type=int,
+        default=16,
+        help="Number of samples per visualization (default: 16)"
+    )
+    parser.add_argument(
+        "--n_grids",
+        type=int,
+        default=4,
+        help="Number of sample grids to generate (default: 4)"
+    )
+    
+    args = parser.parse_args()
+    
+    if args.mode == "train":
+        main()
+    elif args.mode == "sample":
+        if args.checkpoint is None:
+            parser.error("--checkpoint is required for sample mode")
+        sample_mode(
+            checkpoint_path=args.checkpoint,
+            n_samples=args.n_samples,
+            n_grids=args.n_grids
+        )

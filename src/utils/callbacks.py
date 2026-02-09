@@ -182,8 +182,7 @@ class LDMVisualizationCallback(Callback):
         images = batch[0][: self.n_samples].to(pl_module.device)
 
         with torch.no_grad():
-            z = pl_module.ae.encoder(images)
-            recons = pl_module.ae.decoder(z)
+            recons = pl_module.reconstruct(images)
 
         images_vis = (images.clamp(-1, 1) + 1) / 2
         recons_vis = (recons.clamp(-1, 1) + 1) / 2

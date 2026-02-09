@@ -28,12 +28,21 @@ def main():
         "val_split": 0.15,
         "seed": 42,
 
-        # Autoencoder
+        # Autoencoder — "ae" (plain), "kl" (KL-regularized VAE), "vq" (VQ-VAE)
+        "ae_type": "kl",
         "in_channels": 1,
         "out_channels": 1,
         "img_shape": (1, 28, 28),
         "base_channels": 32,
         "latent_channels": 64,
+
+        # AE Regularization
+        # ae → 0.0 (unused), kl → 1e-6 (small to avoid posterior collapse), vq → 1.0
+        "reg_weight": 1e-6,
+
+        # VQ-specific (only used when ae_type="vq")
+        "num_embeddings": 512,
+        "commitment_cost": 0.25,
 
         # Scheduler
         "start": 0.0001,
@@ -82,7 +91,7 @@ def main():
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    experiment_name = f"{config['dataset']}_{config['preset']}_{timestamp}"
+    experiment_name = f"{config['dataset']}_{config['ae_type']}_{config['preset']}_{timestamp}"
         
     output_dir = Path("experiments") / experiment_name
 
@@ -111,6 +120,7 @@ def main():
         raise ValueError(f"Unknown dataset: {config['dataset']}. Choose 'MNIST' or 'CIFAR10'.")
 
     model = LDM(
+        ae_type=config["ae_type"],
         in_channels=config["in_channels"],
         out_channels=config["out_channels"],
         img_shape=tuple(config["img_shape"]),
@@ -127,9 +137,12 @@ def main():
         use_ema=config["use_ema"],
         ema_decay=config["ema_decay"],
         recon_weight=config["recon_weight"],
+        reg_weight=config["reg_weight"],
         diff_weight=config["diff_weight"],
         warmup_steps=config["warmup_steps"],
         detach_latent_for_diff=config["detach_latent_for_diff"],
+        num_embeddings=config["num_embeddings"],
+        commitment_cost=config["commitment_cost"],
     )
 
     print(f"Parameters: {count_parameters(model):,}")
@@ -203,11 +216,12 @@ def sample_mode(checkpoint_path, n_samples=16, n_grids=4):
     with open(config_path) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
     
-    print(f"Config: {config['dataset']} | {config['preset']} | {config.get('in_channels', 1)}ch")
+    print(f"Config: {config['dataset']} | {config.get('ae_type', 'ae')} | {config['preset']} | {config.get('in_channels', 1)}ch")
     
     # Load model from checkpoint with correct hyperparameters
     model = LDM.load_from_checkpoint(
         checkpoint_path,
+        ae_type=config.get("ae_type", "ae"),
         in_channels=config["in_channels"],
         out_channels=config["out_channels"],
         img_shape=tuple(config["img_shape"]),
@@ -224,9 +238,12 @@ def sample_mode(checkpoint_path, n_samples=16, n_grids=4):
         use_ema=config.get("use_ema", True),
         ema_decay=config.get("ema_decay", 0.9999),
         recon_weight=config.get("recon_weight", 1.0),
-        diff_weight=config.get("diff_weight", 0.1),
+        reg_weight=config.get("reg_weight", 0.0),
+        diff_weight=config.get("diff_weight", 1.0),
         warmup_steps=config.get("warmup_steps", 0),
         detach_latent_for_diff=config.get("detach_latent_for_diff", True),
+        num_embeddings=config.get("num_embeddings", 512),
+        commitment_cost=config.get("commitment_cost", 0.25),
     )
     model.eval()
     
@@ -270,8 +287,7 @@ def sample_mode(checkpoint_path, n_samples=16, n_grids=4):
     images = batch[0][: n_samples].to(device)
     
     with torch.no_grad():
-        z = model.ae.encoder(images)
-        recons = model.ae.decoder(z)
+        recons = model.reconstruct(images)
     
     images_vis = (images.clamp(-1, 1) + 1) / 2
     recons_vis = (recons.clamp(-1, 1) + 1) / 2

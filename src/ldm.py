@@ -40,7 +40,7 @@ class LDM(L.LightningModule):
         self.warmup_steps = warmup_steps
         self.detach_latent_for_diff = detach_latent_for_diff
 
-        self.klrae = KLRAE(
+        self.ae = AE(
             in_channels=in_channels,
             out_channels=out_channels,
             base_channels=base_channels,
@@ -71,8 +71,8 @@ class LDM(L.LightningModule):
         x, _ = batch
 
         # ---- autoencoder ----
-        z = self.klrae.encoder(x)
-        x_hat = self.klrae.decoder(z)
+        z = self.ae.encoder(x)
+        x_hat = self.ae.decoder(z)
         recon_loss = F.mse_loss(x_hat, x)
 
         # ---- diffusion in latent ----
@@ -98,8 +98,8 @@ class LDM(L.LightningModule):
         x, _ = batch
 
         # ---- autoencoder ----
-        z = self.klrae.encoder(x)
-        x_hat = self.klrae.decoder(z)
+        z = self.ae.encoder(x)
+        x_hat = self.ae.decoder(z)
         recon_loss = F.mse_loss(x_hat, x)
 
         # ---- diffusion in latent ----

@@ -27,13 +27,15 @@ class LDM(L.LightningModule):
         use_ema=True,
         ema_decay=0.9999,
         recon_weight=1.0,
-        diff_weight=0.1,
+        diff_weight=1.0,
         warmup_steps=0,
         detach_latent_for_diff=True,
     ):
         super().__init__()
+        self.save_hyperparameters()
 
         self.lr = lr
+        self.use_ema = use_ema
 
         self.recon_weight = recon_weight
         self.diff_weight = diff_weight
@@ -49,6 +51,7 @@ class LDM(L.LightningModule):
 
         _, H, W = img_shape
         H_lat, W_lat = H // 4, W // 4
+        self.latent_shape = (latent_channels, H_lat, W_lat)
 
         self.diffusion = Diffusion(
             in_channels=latent_channels,
@@ -65,6 +68,15 @@ class LDM(L.LightningModule):
             use_ema=use_ema,
             ema_decay=ema_decay
         )
+
+
+    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_closure, **kwargs):
+        # Let Lightning do the actual stepping/clipping/etc
+        super().optimizer_step(epoch, batch_idx, optimizer, optimizer_closure, **kwargs)
+
+        # Diffusion.optimizer_step won't fire as a sub-module, so handle EMA here
+        if self.use_ema and self.diffusion.ema is not None:
+            self.diffusion.ema.update(self.diffusion.network)
 
 
     def training_step(self, batch, batch_idx):
@@ -114,6 +126,38 @@ class LDM(L.LightningModule):
         self.log("val/diff_loss", diff_loss, prog_bar=True, on_step=False, on_epoch=True, sync_dist=True)
 
         return loss
+
+
+    @torch.no_grad()
+    def sample(self, n):
+        """Generate images: sample latents from diffusion, decode to pixel space."""
+        was_training = self.training
+        self.eval()
+        device = self.device
+
+        # Use EMA weights for the diffusion network if available
+        if self.use_ema and self.diffusion.ema is not None:
+            self.diffusion.ema.apply(self.diffusion.network)
+
+        try:
+            # Sample latents via the diffusion reverse process
+            z = torch.randn(n, *self.latent_shape, device=device)
+
+            for i in reversed(range(self.diffusion.timesteps)):
+                t = torch.full((n,), i, device=device, dtype=torch.long)
+                z = self.diffusion.p_sample(z, t, i)
+
+            # Decode latents to pixel space
+            x = self.ae.decoder(z)
+        finally:
+            # Restore original weights after sampling
+            if self.use_ema and self.diffusion.ema is not None:
+                self.diffusion.ema.restore(self.diffusion.network)
+
+            if was_training:
+                self.train()
+
+        return x
 
 
     def configure_optimizers(self):

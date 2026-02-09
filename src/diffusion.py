@@ -12,6 +12,7 @@ class Diffusion(L.LightningModule):
 
     def __init__(self, in_channels=1, out_channels=1, lr=0.0002, preset="tiny", start=0.0001, end=0.02, timesteps=1000, scheduler_type="linear", img_shape=(1, 28, 28), groups=8, time_emb_dim=512, use_ema=True, ema_decay=0.9999):
         super().__init__()
+        self.save_hyperparameters()
 
         self.lr = lr
         self.img_shape = img_shape

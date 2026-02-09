@@ -127,3 +127,78 @@ class DiffusionSampleGenerationCallback(Callback):
                 step=trainer.global_step,
                 caption=[f"Epoch {epoch} | n={self.n_samples}"],
             )
+
+
+class LDMVisualizationCallback(Callback):
+    """Generate LDM samples and reconstructions during training."""
+
+    def __init__(
+        self,
+        every_n_epochs: int = 5,
+        n_samples: int = 16,
+        nrow: int = 4,
+        output_dir: str = "samples",
+    ):
+        super().__init__()
+        self.every_n_epochs = every_n_epochs
+        self.n_samples = n_samples
+        self.nrow = nrow
+        self.output_dir = Path(output_dir)
+
+    def on_train_epoch_end(self, trainer: L.Trainer, pl_module: L.LightningModule) -> None:
+        epoch = trainer.current_epoch + 1
+        if epoch % self.every_n_epochs != 0:
+            return
+
+        if not hasattr(pl_module, "sample"):
+            return
+
+        # ---- Generated samples from diffusion ----
+        pl_module.eval()
+        with torch.no_grad():
+            samples = pl_module.sample(self.n_samples)
+
+        samples = (samples.clamp(-1, 1) + 1) / 2
+
+        save_path = self.output_dir / f"generated_epoch_{epoch:04d}.png"
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        tv.utils.save_image(samples, save_path, nrow=self.nrow)
+
+        if trainer.logger and hasattr(trainer.logger, "log_image"):
+            grid = tv.utils.make_grid(samples, nrow=self.nrow)
+            trainer.logger.log_image(  # type: ignore[union-attr]
+                key="ldm/generated",
+                images=[grid.permute(1, 2, 0).cpu().numpy()],
+                step=trainer.global_step,
+                caption=[f"Epoch {epoch} | Generated n={self.n_samples}"],
+            )
+
+        # ---- Reconstructions ----
+        val_dataloader = trainer.val_dataloaders
+        if val_dataloader is None:
+            return
+
+        batch = next(iter(val_dataloader))
+        images = batch[0][: self.n_samples].to(pl_module.device)
+
+        with torch.no_grad():
+            z = pl_module.ae.encoder(images)
+            recons = pl_module.ae.decoder(z)
+
+        images_vis = (images.clamp(-1, 1) + 1) / 2
+        recons_vis = (recons.clamp(-1, 1) + 1) / 2
+
+        # Interleave: original, reconstruction, original, reconstruction, ...
+        comparison = torch.stack([images_vis, recons_vis], dim=1).reshape(-1, *images_vis.shape[1:])
+
+        save_path = self.output_dir / f"recon_epoch_{epoch:04d}.png"
+        tv.utils.save_image(comparison, save_path, nrow=self.nrow * 2)
+
+        if trainer.logger and hasattr(trainer.logger, "log_image"):
+            grid = tv.utils.make_grid(comparison, nrow=self.nrow * 2)
+            trainer.logger.log_image(  # type: ignore[union-attr]
+                key="ldm/reconstructions",
+                images=[grid.permute(1, 2, 0).cpu().numpy()],
+                step=trainer.global_step,
+                caption=[f"Epoch {epoch} | Input <> Reconstruction"],
+            )

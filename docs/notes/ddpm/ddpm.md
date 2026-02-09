@@ -223,6 +223,6 @@ where $z \sim \mathcal{N}(0, \mathbf{I})$
 
 ## References
 
-1. https://arxiv.org/abs/1312.6114 - Auto-Encoding Variational Bayes
+1. https://arxiv.org/abs/1312.6114 - Auto-Encoding Variational Bayes - I have studied this and have written notes in my notebook.
 2. https://arxiv.org/abs/2006.11239 - Denoising Diffusion Probabilistic Models
 3. https://arxiv.org/abs/1503.03585 - Deep Unsupervised Learning using Nonequilibrium Thermodynamics

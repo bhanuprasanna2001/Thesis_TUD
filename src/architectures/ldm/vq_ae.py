@@ -49,14 +49,14 @@ class VectorQuantizer(nn.Module):
 
 class VQAE(nn.Module):
 
-    def __init__(self, in_channels=1, out_channels=None, base_channels=32, latent_channels=64, num_embeddings=512, commitment_cost=0.25):
+    def __init__(self, groups=8, in_channels=1, out_channels=None, base_channels=32, latent_channels=64, num_embeddings=512, commitment_cost=0.25):
         super().__init__()
         if out_channels is None:
             out_channels = in_channels
 
-        self.encoder = Encoder(in_channels=in_channels, base_channels=base_channels, latent_channels=latent_channels)
+        self.encoder = Encoder(groups=groups, in_channels=in_channels, base_channels=base_channels, latent_channels=latent_channels)
         self.vq = VectorQuantizer(num_embeddings=num_embeddings, embedding_dim=latent_channels, commitment_cost=commitment_cost)
-        self.decoder = Decoder(out_channels=out_channels, base_channels=base_channels, latent_channels=latent_channels)
+        self.decoder = Decoder(groups=groups, out_channels=out_channels, base_channels=base_channels, latent_channels=latent_channels)
 
 
     def forward(self, X):

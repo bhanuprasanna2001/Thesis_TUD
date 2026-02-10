@@ -42,6 +42,7 @@ def main():
         "groups": 8,
         "preset": "medium",  
         "time_emb_dim": 512,
+        "n_levels": 3,
 
         # Training
         "lr": 0.0003,
@@ -114,7 +115,8 @@ def main():
         groups=config["groups"],
         time_emb_dim=config["time_emb_dim"],
         use_ema=config["use_ema"],
-        ema_decay=config["ema_decay"]
+        ema_decay=config["ema_decay"],
+        n_levels=config["n_levels"],
     )
 
     print(f"Parameters: {count_parameters(model):,}")
@@ -203,7 +205,8 @@ def sample_mode(checkpoint_path, n_samples=16, n_grids=4):
         groups=config["groups"],
         time_emb_dim=config["time_emb_dim"],
         use_ema=config.get("use_ema", True),
-        ema_decay=config.get("ema_decay", 0.9999)
+        ema_decay=config.get("ema_decay", 0.9999),
+        n_levels=config.get("n_levels", 3),
     )
     model.eval()
     

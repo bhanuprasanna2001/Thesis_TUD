@@ -6,18 +6,18 @@ from .ae import Decoder
 
 class KLEncoder(nn.Module):
 
-    def __init__(self, in_channels=1, base_channels=32, latent_channels=64):
+    def __init__(self, groups=8, in_channels=1, base_channels=32, latent_channels=64):
         super().__init__()
 
         # Downsample twice (H/4, W/4), then project to mu and logvar
         self.e1 = nn.Sequential(
             nn.Conv2d(in_channels, base_channels, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(base_channels),
+            nn.GroupNorm(groups, base_channels),
             nn.ReLU(inplace=True)
         )
         self.e2 = nn.Sequential(
             nn.Conv2d(base_channels, base_channels * 2, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(base_channels * 2),
+            nn.GroupNorm(groups, base_channels * 2),
             nn.ReLU(inplace=True)
         )
         # Output 2x latent_channels: first half = mu, second half = logvar
@@ -35,13 +35,13 @@ class KLEncoder(nn.Module):
 
 class KLAE(nn.Module):
 
-    def __init__(self, in_channels=1, out_channels=None, base_channels=32, latent_channels=64):
+    def __init__(self, groups=8, in_channels=1, out_channels=None, base_channels=32, latent_channels=64):
         super().__init__()
         if out_channels is None:
             out_channels = in_channels
 
-        self.encoder = KLEncoder(in_channels=in_channels, base_channels=base_channels, latent_channels=latent_channels)
-        self.decoder = Decoder(out_channels=out_channels, base_channels=base_channels, latent_channels=latent_channels)
+        self.encoder = KLEncoder(groups=groups, in_channels=in_channels, base_channels=base_channels, latent_channels=latent_channels)
+        self.decoder = Decoder(groups=groups, out_channels=out_channels, base_channels=base_channels, latent_channels=latent_channels)
 
 
     def reparameterize(self, mu, logvar):

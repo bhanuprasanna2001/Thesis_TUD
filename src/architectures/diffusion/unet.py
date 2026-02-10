@@ -70,40 +70,55 @@ class DecoderBlock(nn.Module):
 
 class UNetDiffusion(nn.Module):
     
-    def __init__(self, in_channels, out_channels, base_channels=128, groups=8, time_emb_dim=512):
+    def __init__(self, in_channels, out_channels, base_channels=128, groups=8, time_emb_dim=512, n_levels=3, channel_mults=None, attn_levels=None):
         super().__init__()
         
-        c1 = base_channels
-        c2 = c1 * 2
-        c3 = c2 * 2
-        c4 = c3 * 2
+        if channel_mults is None:
+            channel_mults = tuple(2**i for i in range(n_levels))
+        
+        n_levels = len(channel_mults)
+        self.n_levels = n_levels
+        
+        if attn_levels is None:
+            attn_levels = {n_levels - 1}
+        else:
+            attn_levels = set(attn_levels)
+        
+        channels = [base_channels * m for m in channel_mults]
+        bottleneck_ch = channels[-1] * 2
         
         # Time embedding
         self.time_emb = TimeEmbedding(base_channels, time_emb_dim)
         
         # Initial convolution
-        self.conv_in = nn.Conv2d(in_channels, c1, kernel_size=3, padding=1)
+        self.conv_in = nn.Conv2d(in_channels, channels[0], kernel_size=3, padding=1)
         
         # Encoder
-        self.enc1 = EncoderBlock(c1, c1, time_emb_dim, num_groups=groups, use_attention=False)
-        self.enc2 = EncoderBlock(c1, c2, time_emb_dim, num_groups=groups, use_attention=False)
-        self.enc3 = EncoderBlock(c2, c3, time_emb_dim, num_groups=groups, use_attention=True)
+        self.encoders = nn.ModuleList()
+        for i in range(n_levels):
+            in_ch = channels[i - 1] if i > 0 else channels[0]
+            out_ch = channels[i]
+            use_attn = i in attn_levels
+            self.encoders.append(EncoderBlock(in_ch, out_ch, time_emb_dim, num_groups=groups, use_attention=use_attn))
         
         # Bottleneck
-        self.bottleneck_res1 = ResidualBlock(c3, c4, time_emb_dim, num_groups=groups)
-        self.bottleneck_res2 = ResidualBlock(c4, c4, time_emb_dim, num_groups=groups)
-        self.bottleneck_attn = AttentionBlock(c4, num_groups=groups)
+        self.bottleneck_res1 = ResidualBlock(channels[-1], bottleneck_ch, time_emb_dim, num_groups=groups)
+        self.bottleneck_res2 = ResidualBlock(bottleneck_ch, bottleneck_ch, time_emb_dim, num_groups=groups)
+        self.bottleneck_attn = AttentionBlock(bottleneck_ch, num_groups=groups)
         
-        # Decoder
-        self.dec3 = DecoderBlock(c4, c3, time_emb_dim, num_groups=groups, use_attention=True)
-        self.dec2 = DecoderBlock(c3, c2, time_emb_dim, num_groups=groups, use_attention=False)
-        self.dec1 = DecoderBlock(c2, c1, time_emb_dim, num_groups=groups, use_attention=False)
+        # Decoder (reversed)
+        self.decoders = nn.ModuleList()
+        for i in reversed(range(n_levels)):
+            in_ch = bottleneck_ch if i == n_levels - 1 else channels[i + 1]
+            out_ch = channels[i]
+            use_attn = i in attn_levels
+            self.decoders.append(DecoderBlock(in_ch, out_ch, time_emb_dim, num_groups=groups, use_attention=use_attn))
         
         # Output
         self.conv_out = nn.Sequential(
-            nn.GroupNorm(groups, c1),
+            nn.GroupNorm(groups, channels[0]),
             nn.SiLU(),
-            nn.Conv2d(c1, out_channels, kernel_size=3, padding=1)
+            nn.Conv2d(channels[0], out_channels, kernel_size=3, padding=1)
         )
         
         
@@ -115,19 +130,20 @@ class UNetDiffusion(nn.Module):
         X = self.conv_in(X)
         
         # Encoder
-        X, skip1 = self.enc1(X, time_emb)
-        X, skip2 = self.enc2(X, time_emb)
-        X, skip3 = self.enc3(X, time_emb)
+        skips = []
+        for encoder in self.encoders:
+            X, skip = encoder(X, time_emb)
+            skips.append(skip)
         
         # Bottleneck
         X = self.bottleneck_res1(X, time_emb)
         X = self.bottleneck_res2(X, time_emb)
         X = self.bottleneck_attn(X)
         
-        # Decoder
-        X = self.dec3(X, skip3, time_emb)
-        X = self.dec2(X, skip2, time_emb)
-        X = self.dec1(X, skip1, time_emb)
+        # Decoder (uses skips in reverse)
+        for decoder in self.decoders:
+            skip = skips.pop()
+            X = decoder(X, skip, time_emb)
         
         # Output
         X = self.conv_out(X)
@@ -138,12 +154,12 @@ class UNetDiffusion(nn.Module):
 if __name__ == "__main__":
     print("Testing UNetDiffusion:")
     
-    # Test 1: RGB images
+    # Test 1: RGB images (default 3 levels)
     X = torch.randn(2, 3, 64, 64)
     t = torch.randint(0, 1000, (2,))
     model = UNetDiffusion(in_channels=3, out_channels=3, base_channels=64)
     out = model(X, t)
-    print(f"RGB Test: {X.size()} -> {out.size()}")
+    print(f"RGB 3-level Test: {X.size()} -> {out.size()}")
     assert X.size() == out.size()
     
     # Test 2: MNIST-like images
@@ -152,6 +168,22 @@ if __name__ == "__main__":
     model = UNetDiffusion(in_channels=1, out_channels=1, base_channels=64)
     out = model(X, t)
     print(f"MNIST Test: {X.size()} -> {out.size()}")
+    assert X.size() == out.size()
+    
+    # Test 3: Latent diffusion with 2 levels on 8x8
+    X = torch.randn(2, 4, 8, 8)
+    t = torch.randint(0, 1000, (2,))
+    model = UNetDiffusion(in_channels=4, out_channels=4, base_channels=64, n_levels=2)
+    out = model(X, t)
+    print(f"Latent 2-level Test: {X.size()} -> {out.size()}")
+    assert X.size() == out.size()
+    
+    # Test 4: Single level
+    X = torch.randn(2, 4, 8, 8)
+    t = torch.randint(0, 1000, (2,))
+    model = UNetDiffusion(in_channels=4, out_channels=4, base_channels=32, n_levels=1)
+    out = model(X, t)
+    print(f"Latent 1-level Test: {X.size()} -> {out.size()}")
     assert X.size() == out.size()
     
     print("✓ All tests passed!")

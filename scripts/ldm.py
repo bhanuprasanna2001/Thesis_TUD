@@ -29,20 +29,20 @@ def main():
         "seed": 42,
 
         # Autoencoder — "ae" (plain), "kl" (KL-regularized VAE), "vq" (VQ-VAE)
-        "ae_type": "kl",
+        "ae_type": "vq",
         "in_channels": 1,
         "out_channels": 1,
         "img_shape": (1, 28, 28),
         "base_channels": 32,
-        "latent_channels": 64,
+        "latent_channels": 4,
 
         # AE Regularization
         # ae → 0.0 (unused), kl → 1e-6 (small to avoid posterior collapse), vq → 1.0
-        "reg_weight": 1e-6,
+        "reg_weight": 1.0,
 
         # VQ-specific (only used when ae_type="vq")
         "num_embeddings": 512,
-        "commitment_cost": 0.25,
+        "commitment_cost": 0.2,
 
         # Scheduler
         "start": 0.0001,
@@ -52,8 +52,9 @@ def main():
 
         # U-Net Model (operates in latent space) - xtiny(0.8M), tiny(2M), mini(4M), small(6M), medium(13M), base(23M), large(51M), xlarge(89M), xxlarge(198M)
         "groups": 8,
-        "preset": "tiny",
+        "preset": "base",
         "time_emb_dim": 512,
+        "n_levels": 2,
 
         # Training
         "lr": 0.0002,
@@ -64,7 +65,7 @@ def main():
         # Loss Weights
         "recon_weight": 1.0,
         "diff_weight": 1.0,
-        "warmup_steps": 0,
+        "warmup_steps": 5000,
         "detach_latent_for_diff": True,
 
         # EMA
@@ -143,6 +144,7 @@ def main():
         detach_latent_for_diff=config["detach_latent_for_diff"],
         num_embeddings=config["num_embeddings"],
         commitment_cost=config["commitment_cost"],
+        n_levels=config["n_levels"],
     )
 
     print(f"Parameters: {count_parameters(model):,}")
@@ -244,6 +246,7 @@ def sample_mode(checkpoint_path, n_samples=16, n_grids=4):
         detach_latent_for_diff=config.get("detach_latent_for_diff", True),
         num_embeddings=config.get("num_embeddings", 512),
         commitment_cost=config.get("commitment_cost", 0.25),
+        n_levels=config.get("n_levels", 3),
     )
     model.eval()
     

@@ -10,7 +10,7 @@ from .utils import get_scheduler, get_unet_preset, EMA
 
 class Diffusion(L.LightningModule):
 
-    def __init__(self, in_channels=1, out_channels=1, lr=0.0002, preset="tiny", start=0.0001, end=0.02, timesteps=1000, scheduler_type="linear", img_shape=(1, 28, 28), groups=8, time_emb_dim=512, use_ema=True, ema_decay=0.9999):
+    def __init__(self, in_channels=1, out_channels=1, lr=0.0002, preset="tiny", start=0.0001, end=0.02, timesteps=1000, scheduler_type="linear", img_shape=(1, 28, 28), groups=8, time_emb_dim=512, use_ema=True, ema_decay=0.9999, n_levels=3, channel_mults=None):
         super().__init__()
         self.save_hyperparameters()
 
@@ -46,7 +46,7 @@ class Diffusion(L.LightningModule):
 
         base_channels = get_unet_preset(preset)
 
-        self.network = UNetDiffusion(in_channels=in_channels, out_channels=out_channels, base_channels=base_channels, groups=groups, time_emb_dim=time_emb_dim)
+        self.network = UNetDiffusion(in_channels=in_channels, out_channels=out_channels, base_channels=base_channels, groups=groups, time_emb_dim=time_emb_dim, n_levels=n_levels, channel_mults=channel_mults)
 
         # Initialize EMA in __init__ so it is included in checkpoints and moved to device with the module
         self.ema = EMA(self.network, decay=self.ema_decay) if self.use_ema else None

@@ -25,6 +25,8 @@ class LDM(L.LightningModule):
         img_shape=(1, 28, 28),
         groups=8,
         time_emb_dim=512,
+        n_levels=3,
+        channel_mults=None,
         use_ema=True,
         ema_decay=0.9999,
         recon_weight=1.0,
@@ -51,6 +53,7 @@ class LDM(L.LightningModule):
         # ---- autoencoder ----
         if ae_type == "ae":
             self.ae = AE(
+                groups=groups,
                 in_channels=in_channels,
                 out_channels=out_channels,
                 base_channels=base_channels,
@@ -58,6 +61,7 @@ class LDM(L.LightningModule):
             )
         elif ae_type == "kl":
             self.ae = KLAE(
+                groups=groups,
                 in_channels=in_channels,
                 out_channels=out_channels,
                 base_channels=base_channels,
@@ -65,6 +69,7 @@ class LDM(L.LightningModule):
             )
         elif ae_type == "vq":
             self.ae = VQAE(
+                groups=groups,
                 in_channels=in_channels,
                 out_channels=out_channels,
                 base_channels=base_channels,
@@ -94,7 +99,9 @@ class LDM(L.LightningModule):
             groups=groups,
             time_emb_dim=time_emb_dim,
             use_ema=use_ema,
-            ema_decay=ema_decay
+            ema_decay=ema_decay,
+            n_levels=n_levels,
+            channel_mults=channel_mults,
         )
 
 

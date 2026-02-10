@@ -4,25 +4,22 @@ import torch.nn as nn
 
 class Encoder(nn.Module):
 
-    def __init__(self, in_channels=1, base_channels=32, latent_channels=64):
+    def __init__(self, groups=8, in_channels=1, base_channels=32, latent_channels=64):
         super().__init__()
 
         # Downsample twice (H/4, W/4) then project to latent channels without further size change
         self.e1 = nn.Sequential(
             nn.Conv2d(in_channels, base_channels, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(base_channels),
+            nn.GroupNorm(groups, base_channels),
             nn.ReLU(inplace=True)
         )
         self.e2 = nn.Sequential(
             nn.Conv2d(base_channels, base_channels * 2, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(base_channels * 2),
+            nn.GroupNorm(groups, base_channels * 2),
             nn.ReLU(inplace=True)
         )
-        self.e3 = nn.Sequential(
-            nn.Conv2d(base_channels * 2, latent_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(latent_channels),
-            nn.ReLU(inplace=True)
-        )
+        # No activation on final encoder layer — lets latent space be unconstrained
+        self.e3 = nn.Conv2d(base_channels * 2, latent_channels, kernel_size=3, padding=1)
 
 
     def forward(self, X):
@@ -34,19 +31,19 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
 
-    def __init__(self, out_channels=1, base_channels=32, latent_channels=64):
+    def __init__(self, groups=8, out_channels=1, base_channels=32, latent_channels=64):
         super().__init__()
 
         # Mirror encoder: keep spatial size, then upsample twice back to input res
         self.d1 = nn.Sequential(
             nn.Conv2d(latent_channels, base_channels * 2, kernel_size=3, padding=1),
-            nn.BatchNorm2d(base_channels * 2),
+            nn.GroupNorm(groups, base_channels * 2),
             nn.ReLU(inplace=True)
         )
         self.d2 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode="nearest"),
             nn.Conv2d(base_channels * 2, base_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(base_channels),
+            nn.GroupNorm(groups, base_channels),
             nn.ReLU(inplace=True)
         )
         self.d3 = nn.Sequential(
@@ -64,13 +61,13 @@ class Decoder(nn.Module):
 
 class AE(nn.Module):
 
-    def __init__(self, in_channels=1, out_channels=None, base_channels=32, latent_channels=64):
+    def __init__(self, groups=8, in_channels=1, out_channels=None, base_channels=32, latent_channels=64):
         super().__init__()
         if out_channels is None:
             out_channels = in_channels
 
-        self.encoder = Encoder(in_channels=in_channels, base_channels=base_channels, latent_channels=latent_channels)
-        self.decoder = Decoder(out_channels=out_channels, base_channels=base_channels, latent_channels=latent_channels)
+        self.encoder = Encoder(groups=groups, in_channels=in_channels, base_channels=base_channels, latent_channels=latent_channels)
+        self.decoder = Decoder(groups=groups, out_channels=out_channels, base_channels=base_channels, latent_channels=latent_channels)
 
 
     def forward(self, X):

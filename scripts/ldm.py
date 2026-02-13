@@ -43,6 +43,13 @@ def main():
         # VQ-specific (only used when ae_type="vq")
         "num_embeddings": 512,
         "commitment_cost": 0.2,
+        "use_vq_gan_loss": True,
+        "adv_weight": 0.1,
+        "fm_weight": 1.0,
+        "disc_start_step": 5000,
+        "disc_channels": 64,
+        "disc_num_layers": 3,
+        "disc_lr_mult": 1.0,
 
         # Scheduler
         "start": 0.0001,
@@ -145,6 +152,14 @@ def main():
         num_embeddings=config["num_embeddings"],
         commitment_cost=config["commitment_cost"],
         n_levels=config["n_levels"],
+        use_vq_gan_loss=config.get("use_vq_gan_loss", False),
+        adv_weight=config.get("adv_weight", 0.1),
+        fm_weight=config.get("fm_weight", 1.0),
+        disc_start_step=config.get("disc_start_step", 0),
+        disc_channels=config.get("disc_channels", 64),
+        disc_num_layers=config.get("disc_num_layers", 3),
+        disc_lr_mult=config.get("disc_lr_mult", 1.0),
+        manual_gradient_clip_val=config.get("gradient_clip_val", 1.0),
     )
 
     print(f"Parameters: {count_parameters(model):,}")
@@ -178,6 +193,9 @@ def main():
     with open(output_dir / "config.yaml", "w") as f:
         yaml.dump(config, f)
 
+    trainer_gradient_clip_val = config.get("gradient_clip_val", 1.0)
+    if config.get("ae_type") == "vq" and config.get("use_vq_gan_loss", False):
+        trainer_gradient_clip_val = None
 
     trainer = L.Trainer(
         max_epochs=config["epochs"],
@@ -187,7 +205,7 @@ def main():
         logger=logger,
         log_every_n_steps=config["log_every_n_steps"],
         enable_progress_bar=True,
-        gradient_clip_val=config.get("gradient_clip_val", 1.0),
+        gradient_clip_val=trainer_gradient_clip_val,
     )
     
     trainer.fit(model, datamodule)
@@ -247,6 +265,14 @@ def sample_mode(checkpoint_path, n_samples=16, n_grids=4):
         num_embeddings=config.get("num_embeddings", 512),
         commitment_cost=config.get("commitment_cost", 0.25),
         n_levels=config.get("n_levels", 3),
+        use_vq_gan_loss=config.get("use_vq_gan_loss", False),
+        adv_weight=config.get("adv_weight", 0.1),
+        fm_weight=config.get("fm_weight", 1.0),
+        disc_start_step=config.get("disc_start_step", 0),
+        disc_channels=config.get("disc_channels", 64),
+        disc_num_layers=config.get("disc_num_layers", 3),
+        disc_lr_mult=config.get("disc_lr_mult", 1.0),
+        manual_gradient_clip_val=config.get("gradient_clip_val", 1.0),
     )
     model.eval()
     

@@ -85,6 +85,7 @@ def main():
 
         # Logging
         "use_wandb": True,
+        "wandb_team": "thesis-tud",
         "wandb_project": "thesis-ldm"
     }
 
@@ -166,6 +167,7 @@ def main():
 
     if config["use_wandb"]:
         logger = WandbLogger(
+            entity=config["wandb_team"],
             project=config["wandb_project"],
             name=experiment_name,
             save_dir=output_dir,
